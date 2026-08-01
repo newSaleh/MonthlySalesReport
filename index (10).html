@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>تقرير المبيعات الشهري</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1c2a2e;
+    --paper:#f7f5ef;
+    --line:#c9c2b2;
+    --accent:#2f6f5e;
+    --accent-dark:#1f4b3f;
+    --danger:#9c3b3b;
+    --muted:#6c6558;
+    --card:#ffffff;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Tajawal', sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+    padding:28px 16px 80px;
+  }
+  .wrap{max-width:900px;margin:0 auto;}
+  .app-header{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    border-bottom:3px solid var(--ink);
+    padding-bottom:14px;
+    margin-bottom:22px;
+  }
+  .app-header h1{font-size:22px;margin:0;font-weight:900;}
+  .app-header span{font-size:12px;color:var(--muted);font-family:'IBM Plex Mono',monospace;}
+
+  .panel{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:18px 20px;
+    margin-bottom:18px;
+  }
+  .panel h2{
+    font-size:14px;
+    margin:0 0 12px;
+    color:var(--accent-dark);
+    font-weight:700;
+  }
+  label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:6px;}
+  textarea{
+    width:100%;
+    min-height:180px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    direction:ltr;
+    text-align:left;
+    padding:10px;
+    border:1px solid var(--line);
+    border-radius:6px;
+    resize:vertical;
+    background:#fbfaf6;
+  }
+  .row{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;}
+  .months-grid{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:10px;
+    margin-top:14px;
+  }
+  .month-item{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:7px 10px;
+    background:#fbfaf6;
+  }
+  .month-item span{font-size:13px;font-weight:500;}
+  .month-item input{
+    width:120px;
+    text-align:center;
+    padding:6px 6px;
+    border:1px solid var(--line);
+    border-radius:4px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12.5px;
+  }
+  @media (max-width:560px){
+    .months-grid{grid-template-columns:repeat(2, 1fr);}
+  }
+  .row > div{flex:1;min-width:140px;}
+  input[type=text], select{
+    width:100%;
+    padding:8px 10px;
+    border:1px solid var(--line);
+    border-radius:6px;
+    font-family:'Tajawal',sans-serif;
+    font-size:13.5px;
+    background:#fbfaf6;
+  }
+  .actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;}
+  button{
+    font-family:'Tajawal',sans-serif;
+    font-weight:700;
+    font-size:13.5px;
+    padding:10px 18px;
+    border-radius:6px;
+    border:1px solid var(--accent-dark);
+    cursor:pointer;
+    background:var(--accent);
+    color:#fff;
+  }
+  button.secondary{background:#fff;color:var(--accent-dark);}
+  button.danger{background:#fff;color:var(--danger);border-color:var(--danger);}
+  button:hover{opacity:.9;}
+  .msg{font-size:12.5px;color:var(--muted);margin-top:10px;min-height:16px;}
+
+  /* ---- Report ---- */
+  #report{display:none;}
+  .report-page{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:34px 38px;
+  }
+  .report-title{
+    text-align:center;
+    border-bottom:2px solid var(--ink);
+    padding-bottom:14px;
+    margin-bottom:24px;
+  }
+  .report-logo{
+    display:block;
+    margin:0 auto 12px;
+    max-width:260px;
+    height:auto;
+  }
+  .report-title h1{font-size:20px;margin:0 0 4px;font-weight:900;}
+  .report-title .sub{font-size:12.5px;color:var(--muted);font-family:'IBM Plex Mono',monospace;}
+
+  table.rt{
+    width:75%;
+    margin:0 auto;
+    margin-bottom:26px;
+    border-collapse:collapse;
+    font-size:14.5px;
+  }
+  table.rt caption{
+    text-align:right;
+    font-weight:700;
+    font-size:14px;
+    color:var(--accent-dark);
+    margin-bottom:8px;
+    caption-side:top;
+  }
+  table.rt th, table.rt td{
+    border:1px solid var(--line);
+    padding:6px 8px;
+    text-align:center;
+  }
+  table.rt thead th{
+    background:var(--accent-dark);
+    color:#fff;
+    font-weight:700;
+  }
+  table.rt tbody tr:nth-child(even){background:#f4f2ea;}
+  table.rt td.num, table.rt th.num{
+    font-family:'IBM Plex Mono',monospace;
+    direction:ltr;
+    text-align:center;
+  }
+  table.rt tr.best td{color:var(--accent-dark);font-weight:700;}
+  table.rt tr.worst td{color:var(--danger);font-weight:700;}
+  table.rt tfoot td{font-weight:900;background:#ece7d8;}
+
+  .report-footer{
+    display:flex;
+    justify-content:space-between;
+    font-size:11px;
+    color:var(--muted);
+    border-top:1px solid var(--line);
+    padding-top:10px;
+    margin-top:6px;
+  }
+
+  @media print{
+    body{background:#fff;padding:0;}
+    .no-print{display:none !important;}
+    #report{display:block !important;}
+    .report-page{border:none;border-radius:0;padding:0;}
+    @page{size:A4;margin:10mm;}
+
+    .report-logo{max-width:150px;margin-bottom:8px;}
+
+    /* خط واحد موحّد لكل عناصر التقرير المطبوع لتقليل عدد الخطوط المُضمَّنة داخل PDF إلى أدنى حد */
+    body, .report-title h1, table.rt, table.rt caption, table.rt td.num, table.rt th.num{
+      font-family:'Tahoma', Arial, sans-serif !important;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="app-header no-print">
+    <h1>تقرير المبيعات الشهري</h1>
+    <span>Sales Report Builder</span>
+  </div>
+
+  <div class="panel no-print">
+    <h2>الخطوة ١ — لصق بيانات المبيعات اليومية</h2>
+    <label>الصق الجدول كما هو (بترتيب: Date ثم أرقام الفروع ثم TOTAL، مفصولة بـ Tab). لتعبئة جدول "ملخص صافي المبيعات لشهور 2026" بأكثر من شهر، الصق بيانات كل الأشهر المطلوبة معًا دفعة واحدة — الصفحة لا تحفظ أي بيانات بين الجلسات ولا تخزّنها في أي مكان.</label>
+    <textarea id="rawData" placeholder="Date&#9;701&#9;706&#9;707&#9;711&#9;803&#9;TOTAL&#10;01-JUL-2026&#9;276648.75&#9;..."></textarea>
+    <div class="msg" id="parseMsg"></div>
+  </div>
+
+  <div class="panel no-print">
+    <h2>الخطوة ٢ (اختياري) — تعبئة/تعديل مبالغ الأشهر يدويًا</h2>
+    <label>هذه القيم تُستخدم في جدول "ملخص صافي المبيعات لشهور السنة" فقط، ولا تدخل في الجدولين الأول والثاني. اترك الخانة فارغة إذا أردت الاعتماد على المبلغ المحسوب تلقائيًا من البيانات اليومية الملصوقة أعلاه لذلك الشهر.</label>
+    <div class="row" style="max-width:220px;">
+      <div>
+        <label>السنة</label>
+        <input type="text" id="extraYear" value="2026">
+      </div>
+    </div>
+    <div class="months-grid" id="monthsGrid"></div>
+  </div>
+
+  <div class="panel no-print">
+    <h2>الخطوة ٣ — توليد التقرير</h2>
+    <div class="actions">
+      <button id="generateBtn">توليد التقرير</button>
+      <button class="secondary" id="printBtn" style="display:none;">حفظ / طباعة PDF</button>
+    </div>
+    <div class="msg" id="genMsg"></div>
+  </div>
+
+  <div id="report">
+    <div class="report-page">
+      <div class="report-title">
+        <img src="data:image/png;base64,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" alt="شعار الشركة" class="report-logo">
+        <h1 id="reportTitleAr">تقرير المبيعات الشهري</h1>
+      </div>
+
+      <table class="rt" id="table1">
+        <caption>ملخص عام</caption>
+        <tbody></tbody>
+      </table>
+
+      <table class="rt" id="table2">
+        <caption>ملخص الفروع</caption>
+        <thead>
+          <tr>
+            <th>الفرع</th>
+            <th class="num">إجمالي المبيعات</th>
+            <th class="num">المتوسط اليومي</th>
+            <th class="num">نسبة من إجمالي المبيعات</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <table class="rt" id="table3">
+        <caption>ملخص صافي المبيعات لشهور سنة 2026</caption>
+        <thead>
+          <tr><th>الشهر</th><th class="num">صافي المبيعات</th></tr>
+        </thead>
+        <tbody></tbody>
+        <tfoot></tfoot>
+      </table>
+
+      <div class="report-footer">
+        <span id="genDate"></span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const BRANCH_NAMES = {
+  "701": "الدائري",
+  "706": "الفيحاء",
+  "707": "البديعة",
+  "711": "القصيم",
+  "803": "التحلية"
+};
+const BRANCH_ORDER = ["701","706","707","711","803"];
+
+const MONTH_AR = {
+  JAN:"يناير", FEB:"فبراير", MAR:"مارس", APR:"أبريل", MAY:"مايو", JUN:"يونيو",
+  JUL:"يوليو", AUG:"أغسطس", SEP:"سبتمبر", OCT:"أكتوبر", NOV:"نوفمبر", DEC:"ديسمبر"
+};
+const MONTH_NUM = {JAN:"01",FEB:"02",MAR:"03",APR:"04",MAY:"05",JUN:"06",JUL:"07",AUG:"08",SEP:"09",OCT:"10",NOV:"11",DEC:"12"};
+
+function numFmt(n){
+  return Math.round(n).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0});
+}
+
+function arabicDayName(day, monAbbr, year){
+  const names = ["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
+  const d = new Date(parseInt(year,10), parseInt(MONTH_NUM[monAbbr],10)-1, parseInt(day,10));
+  return names[d.getDay()];
+}
+
+function parseNumber(s){
+  if(!s) return NaN;
+  return parseFloat(s.replace(/,/g,'').trim());
+}
+
+function parseData(raw){
+  const lines = raw.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length>0);
+  if(lines.length < 2) throw new Error("لم يتم العثور على بيانات كافية. الصق سطر العناوين ثم صفوف البيانات.");
+
+  let rows = lines.map(l => l.split('\t').map(c=>c.trim()));
+  // fallback: if no tabs detected, split on 2+ spaces
+  if(rows[0].length < 2){
+    rows = lines.map(l => l.split(/\s{2,}/).map(c=>c.trim()));
+  }
+
+  const header = rows[0].map(h=>h.toUpperCase());
+  const dateIdx = header.findIndex(h=>h.includes('DATE'));
+  const totalIdx = header.findIndex(h=>h.includes('TOTAL'));
+  if(dateIdx === -1 || totalIdx === -1) throw new Error("تعذّر التعرّف على أعمدة Date أو TOTAL في سطر العناوين.");
+
+  const branchCols = {};
+  BRANCH_ORDER.forEach(code=>{
+    const idx = header.findIndex(h=>h === code);
+    if(idx !== -1) branchCols[code] = idx;
+  });
+  if(Object.keys(branchCols).length === 0) throw new Error("تعذّر العثور على أعمدة أرقام الفروع (701, 706, ...).");
+
+  const dataRows = rows.slice(1).filter(r=>r.length >= header.length && r[dateIdx]);
+
+  const parsed = dataRows.map(r=>{
+    const dateStr = r[dateIdx];
+    const m = dateStr.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{4})$/);
+    if(!m) throw new Error("تنسيق تاريخ غير معروف: " + dateStr);
+    const day = m[1], monAbbr = m[2].toUpperCase(), year = m[3];
+    const branchVals = {};
+    BRANCH_ORDER.forEach(code=>{
+      if(branchCols[code] !== undefined) branchVals[code] = parseNumber(r[branchCols[code]]) || 0;
+    });
+    const total = parseNumber(r[totalIdx]);
+    return {dateStr, day, monAbbr, year, branchVals, total: isNaN(total) ? Object.values(branchVals).reduce((a,b)=>a+b,0) : total};
+  });
+
+  if(parsed.length === 0) throw new Error("لم يتم استخراج أي صفوف بيانات صالحة.");
+
+  const monAbbr = parsed[0].monAbbr;
+  const year = parsed[0].year;
+  if(!MONTH_AR[monAbbr]) throw new Error("شهر غير معروف: " + monAbbr);
+
+  return {rows: parsed, monAbbr, year, branchCols};
+}
+
+const MONTH_ORDER = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+
+function buildMonthsGrid(){
+  const grid = document.getElementById('monthsGrid');
+  grid.innerHTML = '';
+  MONTH_ORDER.forEach(abbr=>{
+    const item = document.createElement('div');
+    item.className = 'month-item';
+    item.innerHTML = `<span>${MONTH_AR[abbr]}</span><input type="text" inputmode="decimal" placeholder="—" data-month="${abbr}">`;
+    grid.appendChild(item);
+  });
+}
+
+function parseExtraMonths(){
+  const year = (document.getElementById('extraYear').value || '').trim();
+  if(!year) throw new Error("الرجاء إدخال السنة لخانات الأشهر.");
+  const groups = {};
+  document.querySelectorAll('#monthsGrid input[data-month]').forEach(input=>{
+    const val = input.value.trim();
+    if(!val) return;
+    const amount = parseNumber(val);
+    if(isNaN(amount)) throw new Error(`مبلغ غير صالح لشهر ${MONTH_AR[input.dataset.month]}`);
+    const key = `${year}-${MONTH_NUM[input.dataset.month]}`;
+    groups[key] = amount;
+  });
+  return groups;
+}
+
+buildMonthsGrid();
+
+
+// لا يوجد أي حفظ أو تخزين للبيانات: يتم تجميع جدول الأشهر مباشرة من البيانات
+// الملصوقة في نفس الجلسة فقط. إن أردت جدولًا سنويًا كاملاً، الصق بيانات كل الأشهر
+// المطلوبة معًا في مربع الإدخال دفعة واحدة، أو أضف شهورًا سابقة عبر حقل "شهور إضافية".
+function buildTable3(allRows, extraGroups){
+  const groups = {}; // key: "YYYY-MM" -> sum
+  allRows.forEach(r=>{
+    const key = `${r.year}-${MONTH_NUM[r.monAbbr]}`;
+    groups[key] = (groups[key]||0) + r.total;
+  });
+  Object.keys(extraGroups||{}).forEach(key=>{
+    groups[key] = extraGroups[key];
+  });
+  const keys = Object.keys(groups).sort();
+
+  const tbody = document.querySelector('#table3 tbody');
+  const tfoot = document.querySelector('#table3 tfoot');
+  tbody.innerHTML = '';
+  tfoot.innerHTML = '';
+  let sum = 0;
+  keys.forEach(k=>{
+    const [yr, mn] = k.split('-');
+    const monthKey = Object.keys(MONTH_NUM).find(m=>MONTH_NUM[m]===mn);
+    const monthName = monthKey ? MONTH_AR[monthKey] : mn;
+    sum += groups[k];
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${monthName} ${yr}</td><td class="num">${numFmt(groups[k])}</td>`;
+    tbody.appendChild(tr);
+  });
+  const trFoot = document.createElement('tr');
+  trFoot.innerHTML = `<td>الإجمالي</td><td class="num">${numFmt(sum)}</td>`;
+  tfoot.appendChild(trFoot);
+}
+
+document.getElementById('generateBtn').addEventListener('click', async ()=>{
+  const genMsg = document.getElementById('genMsg');
+  genMsg.textContent = '';
+  genMsg.style.color = 'var(--muted)';
+  try{
+    const raw = document.getElementById('rawData').value;
+    const {rows, monAbbr, year} = parseData(raw);
+
+    // Table 1: ملخص عام
+    const total = rows.reduce((a,r)=>a+r.total,0);
+    const avg = total / rows.length;
+    let best = rows[0], worst = rows[0];
+    rows.forEach(r=>{ if(r.total > best.total) best = r; if(r.total < worst.total) worst = r; });
+
+    const t1 = document.querySelector('#table1 tbody');
+    t1.innerHTML = `
+      <tr><td>إجمالي المبيعات</td><td class="num">${numFmt(total)}</td></tr>
+      <tr><td>متوسط المبيعات في اليوم</td><td class="num">${numFmt(avg)}</td></tr>
+      <tr class="best"><td>أفضل يوم مبيعًا (${arabicDayName(best.day, best.monAbbr, best.year)}، ${best.day} ${MONTH_AR[best.monAbbr]} ${best.year})</td><td class="num">${numFmt(best.total)}</td></tr>
+      <tr class="worst"><td>أسوأ يوم مبيعًا (${arabicDayName(worst.day, worst.monAbbr, worst.year)}، ${worst.day} ${MONTH_AR[worst.monAbbr]} ${worst.year})</td><td class="num">${numFmt(worst.total)}</td></tr>
+    `;
+
+    // Table 2: ملخص الفروع (مرتّب تنازليًا حسب إجمالي المبيعات)
+    const t2 = document.querySelector('#table2 tbody');
+    t2.innerHTML = '';
+    const branchStats = BRANCH_ORDER.map(code=>{
+      const branchTotal = rows.reduce((a,r)=> a + (r.branchVals[code]||0), 0);
+      const branchAvg = branchTotal / rows.length;
+      const pct = total ? (branchTotal/total*100) : 0;
+      return {code, branchTotal, branchAvg, pct};
+    });
+    branchStats.sort((a,b)=> b.branchTotal - a.branchTotal);
+    branchStats.forEach(({code, branchTotal, branchAvg, pct})=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${BRANCH_NAMES[code]}</td><td class="num">${numFmt(branchTotal)}</td><td class="num">${numFmt(branchAvg)}</td><td class="num">${Math.round(pct)}%</td>`;
+      t2.appendChild(tr);
+    });
+
+    // Table 3: ملخص صافي المبيعات لشهور السنة — بيانات الجلسة الحالية + الشهور اليدوية المضافة
+    const extraGroups = parseExtraMonths();
+    buildTable3(rows, extraGroups);
+
+    document.getElementById('reportTitleAr').textContent = `تقرير المبيعات الشهري — ${MONTH_AR[monAbbr]} ${year}`;
+    document.getElementById('genDate').textContent = 'تاريخ التوليد: ' + new Date().toLocaleDateString('ar-SA');
+
+    document.getElementById('report').style.display = 'block';
+    document.getElementById('printBtn').style.display = 'inline-block';
+    genMsg.textContent = `تم توليد التقرير بنجاح (${rows.length} يومًا).`;
+  }catch(err){
+    genMsg.style.color = 'var(--danger)';
+    genMsg.textContent = 'خطأ: ' + err.message;
+  }
+});
+
+document.getElementById('printBtn').addEventListener('click', ()=>{
+  window.print();
+});
+
+</script>
+</body>
+</html>
