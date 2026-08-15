@@ -6,6 +6,7 @@
 <title>تقرير المبيعات الشهري</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
     --ink:#1c2a2e;
@@ -214,8 +215,12 @@
   </div>
 
   <div class="panel no-print">
-    <h2>الخطوة ١ — لصق بيانات المبيعات اليومية</h2>
-    <label>الصق الجدول كما هو (بترتيب: Date ثم أرقام الفروع ثم TOTAL، مفصولة بـ Tab). لتعبئة جدول "ملخص صافي المبيعات لشهور 2026" بأكثر من شهر، الصق بيانات كل الأشهر المطلوبة معًا دفعة واحدة — الصفحة لا تحفظ أي بيانات بين الجلسات ولا تخزّنها في أي مكان.</label>
+    <h2>الخطوة ١ — لصق بيانات المبيعات اليومية أو استيرادها من ملف Excel</h2>
+    <label>الصق الجدول كما هو (بترتيب: Date ثم أرقام الفروع ثم TOTAL، مفصولة بـ Tab)، أو استورد ملف Excel/CSV يحتوي على نفس الأعمدة. لتعبئة جدول "ملخص صافي المبيعات لشهور 2026" بأكثر من شهر، أضف بيانات كل الأشهر المطلوبة معًا دفعة واحدة — الصفحة لا تحفظ أي بيانات بين الجلسات ولا تخزّنها في أي مكان.</label>
+    <div class="actions" style="margin-top:0;margin-bottom:12px;">
+      <button type="button" class="secondary" id="importExcelBtn">📄 استيراد من ملف Excel</button>
+      <input type="file" id="excelFileInput" accept=".xlsx,.xls,.csv" style="display:none;">
+    </div>
     <textarea id="rawData" placeholder="Date&#9;701&#9;706&#9;707&#9;711&#9;803&#9;TOTAL&#10;01-JUL-2026&#9;276648.75&#9;..."></textarea>
     <div class="msg" id="parseMsg"></div>
   </div>
@@ -389,6 +394,68 @@ function parseExtraMonths(){
 }
 
 buildMonthsGrid();
+
+// ---- استيراد من ملف Excel/CSV ----
+// لا يُرفَع الملف إلى أي خادم؛ تتم قراءته وتحويله محليًا في المتصفح فقط
+// ثم يُملأ في نفس مربع النص المستخدم للّصق اليدوي.
+function excelCellToText(cell){
+  if(cell instanceof Date){
+    const day = String(cell.getDate()).padStart(2,'0');
+    const monAbbr = MONTH_ORDER[cell.getMonth()];
+    const year = cell.getFullYear();
+    return `${day}-${monAbbr}-${year}`;
+  }
+  if(typeof cell === 'number') return String(cell);
+  return String(cell ?? '').trim();
+}
+
+document.getElementById('importExcelBtn').addEventListener('click', ()=>{
+  document.getElementById('excelFileInput').click();
+});
+
+document.getElementById('excelFileInput').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  const parseMsg = document.getElementById('parseMsg');
+  if(!file) return;
+  if(typeof XLSX === 'undefined'){
+    parseMsg.style.color = 'var(--danger)';
+    parseMsg.textContent = 'تعذّر تحميل مكتبة قراءة ملفات Excel. تحقق من الاتصال بالإنترنت وحاول مجددًا.';
+    e.target.value = '';
+    return;
+  }
+  parseMsg.style.color = 'var(--muted)';
+  parseMsg.textContent = 'جارٍ قراءة الملف...';
+
+  const reader = new FileReader();
+  reader.onload = (evt)=>{
+    try{
+      const data = new Uint8Array(evt.target.result);
+      const wb = XLSX.read(data, {type:'array', cellDates:true});
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, {header:1, raw:true, defval:''});
+      const tsvLines = rows
+        .filter(r => Array.isArray(r) && r.some(c => c !== '' && c !== null && c !== undefined))
+        .map(r => r.map(excelCellToText).join('\t'));
+
+      if(tsvLines.length === 0) throw new Error('الملف لا يحتوي على بيانات.');
+
+      document.getElementById('rawData').value = tsvLines.join('\n');
+      parseMsg.style.color = 'var(--muted)';
+      parseMsg.textContent = `تم استيراد ${Math.max(tsvLines.length - 1, 0)} صف بيانات من الملف "${file.name}". راجع البيانات في المربع أدناه ثم اضغط "توليد التقرير".`;
+    }catch(err){
+      parseMsg.style.color = 'var(--danger)';
+      parseMsg.textContent = 'خطأ في قراءة ملف Excel: ' + err.message;
+    }finally{
+      e.target.value = '';
+    }
+  };
+  reader.onerror = ()=>{
+    parseMsg.style.color = 'var(--danger)';
+    parseMsg.textContent = 'تعذّرت قراءة الملف.';
+    e.target.value = '';
+  };
+  reader.readAsArrayBuffer(file);
+});
 
 
 // لا يوجد أي حفظ أو تخزين للبيانات: يتم تجميع جدول الأشهر مباشرة من البيانات
