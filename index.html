@@ -398,11 +398,26 @@ buildMonthsGrid();
 // ---- استيراد من ملف Excel/CSV ----
 // لا يُرفَع الملف إلى أي خادم؛ تتم قراءته وتحويله محليًا في المتصفح فقط
 // ثم يُملأ في نفس مربع النص المستخدم للّصق اليدوي.
+//
+// ملاحظة مهمة: نتعمّد عدم استخدام خيار cellDates من مكتبة SheetJS لأنه يحوّل
+// تاريخ الخلية إلى كائن Date عبر حساب داخلي يتأثر بالمنطقة الزمنية للمتصفح،
+// مما يُنتج أحيانًا تاريخًا أقل بيوم كامل (مثلاً بتوقيت السعودية UTC+3). بدلًا
+// من ذلك نقرأ الرقم التسلسلي الخام للتاريخ ونحوّله يدويًا بحساب UTC صرف
+// لا يعتمد على منطقة زمنية إطلاقًا.
+function excelSerialToDateStr(serial){
+  const utcMs = Math.round((serial - 25569) * 86400 * 1000);
+  const d = new Date(utcMs);
+  const day = String(d.getUTCDate()).padStart(2,'0');
+  const monAbbr = MONTH_ORDER[d.getUTCMonth()];
+  const year = d.getUTCFullYear();
+  return `${day}-${monAbbr}-${year}`;
+}
+
 function excelCellToText(cell){
   if(cell instanceof Date){
-    const day = String(cell.getDate()).padStart(2,'0');
-    const monAbbr = MONTH_ORDER[cell.getMonth()];
-    const year = cell.getFullYear();
+    const day = String(cell.getUTCDate()).padStart(2,'0');
+    const monAbbr = MONTH_ORDER[cell.getUTCMonth()];
+    const year = cell.getUTCFullYear();
     return `${day}-${monAbbr}-${year}`;
   }
   if(typeof cell === 'number') return String(cell);
@@ -430,12 +445,18 @@ document.getElementById('excelFileInput').addEventListener('change', (e)=>{
   reader.onload = (evt)=>{
     try{
       const data = new Uint8Array(evt.target.result);
-      const wb = XLSX.read(data, {type:'array', cellDates:true});
+      const wb = XLSX.read(data, {type:'array'});
       const sheet = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(sheet, {header:1, raw:true, defval:''});
-      const tsvLines = rows
-        .filter(r => Array.isArray(r) && r.some(c => c !== '' && c !== null && c !== undefined))
-        .map(r => r.map(excelCellToText).join('\t'));
+      const nonEmptyRows = rows.filter(r => Array.isArray(r) && r.some(c => c !== '' && c !== null && c !== undefined));
+
+      const headerRow = nonEmptyRows[0] || [];
+      const dateColIdx = headerRow.findIndex(h => String(h).toUpperCase().includes('DATE'));
+
+      const tsvLines = nonEmptyRows.map((r, rowIdx) => r.map((c, colIdx) => {
+        if(rowIdx > 0 && colIdx === dateColIdx && typeof c === 'number') return excelSerialToDateStr(c);
+        return excelCellToText(c);
+      }).join('\t'));
 
       if(tsvLines.length === 0) throw new Error('الملف لا يحتوي على بيانات.');
 
