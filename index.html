@@ -216,7 +216,7 @@
 
   <div class="panel no-print">
     <h2>الخطوة ١ — لصق بيانات المبيعات اليومية أو استيرادها من ملف Excel</h2>
-    <label>الصق الجدول كما هو (بترتيب: Date ثم أرقام الفروع ثم TOTAL، مفصولة بـ Tab)، أو استورد ملف Excel/CSV يحتوي على نفس الأعمدة. لتعبئة جدول "ملخص صافي المبيعات لشهور 2026" بأكثر من شهر، أضف بيانات كل الأشهر المطلوبة معًا دفعة واحدة — الصفحة لا تحفظ أي بيانات بين الجلسات ولا تخزّنها في أي مكان.</label>
+    <label>الصق الجدول كما هو (بترتيب: Date ثم أرقام الفروع ثم TOTAL، مفصولة بـ Tab)، أو استورد ملف Excel/CSV يحتوي على نفس الأعمدة. يمكنك لصق/استيراد بيانات شهر واحد أو السنة كاملة دفعة واحدة — إن وُجد أكثر من شهر ستظهر قائمة لاختيار الشهر المطلوب تقريره، وتُملأ بقية الأشهر في جدول "ملخص صافي المبيعات لشهور السنة" وجدول "ملخص الفروع لسنة كاملة" تلقائيًا. الصفحة لا تحفظ أي بيانات بين الجلسات ولا تخزّنها في أي مكان.</label>
     <div class="actions" style="margin-top:0;margin-bottom:12px;">
       <button type="button" class="secondary" id="importExcelBtn">📄 استيراد من ملف Excel</button>
       <input type="file" id="excelFileInput" accept=".xlsx,.xls,.csv" style="display:none;">
@@ -227,7 +227,7 @@
 
   <div class="panel no-print">
     <h2>الخطوة ٢ (اختياري) — تعبئة/تعديل مبالغ الأشهر يدويًا</h2>
-    <label>هذه القيم تُستخدم في جدول "ملخص صافي المبيعات لشهور السنة" فقط، ولا تدخل في الجدولين الأول والثاني. اترك الخانة فارغة إذا أردت الاعتماد على المبلغ المحسوب تلقائيًا من البيانات اليومية الملصوقة أعلاه لذلك الشهر.</label>
+    <label>هذه القيم تُستخدم في جدول "ملخص صافي المبيعات لشهور السنة" فقط، ولا تدخل في باقي الجداول. إذا كانت بيانات شهر ما موجودة ضمن ما لصقته/استوردته أعلاه، تُملأ خانته هنا تلقائيًا عند توليد التقرير. اترك الخانة فارغة أو عدّلها يدويًا لأي شهر لا تتوفر بياناته اليومية.</label>
     <div class="row" style="max-width:220px;">
       <div>
         <label>السنة</label>
@@ -239,6 +239,12 @@
 
   <div class="panel no-print">
     <h2>الخطوة ٣ — توليد التقرير</h2>
+    <div class="row" style="max-width:260px;display:none;" id="reportMonthRow">
+      <div>
+        <label>الشهر المطلوب للتقرير</label>
+        <select id="reportMonthSelect"></select>
+      </div>
+    </div>
     <div class="actions">
       <button id="generateBtn">توليد التقرير</button>
       <button class="secondary" id="printBtn" style="display:none;">حفظ / طباعة PDF</button>
@@ -259,7 +265,7 @@
       </table>
 
       <table class="rt" id="table2">
-        <caption>ملخص الفروع</caption>
+        <caption id="table2Caption">ملخص الفروع</caption>
         <thead>
           <tr>
             <th>الفرع</th>
@@ -272,12 +278,25 @@
       </table>
 
       <table class="rt" id="table3">
-        <caption>ملخص صافي المبيعات لشهور سنة 2026</caption>
+        <caption id="table3Caption">ملخص صافي المبيعات لشهور سنة 2026</caption>
         <thead>
           <tr><th>الشهر</th><th class="num">صافي المبيعات</th></tr>
         </thead>
         <tbody></tbody>
         <tfoot></tfoot>
+      </table>
+
+      <table class="rt" id="table4">
+        <caption id="table4Caption">ملخص الفروع لسنة 2026 كاملة</caption>
+        <thead>
+          <tr>
+            <th>الفرع</th>
+            <th class="num">إجمالي المبيعات</th>
+            <th class="num">المتوسط اليومي</th>
+            <th class="num">نسبة من إجمالي المبيعات</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
       </table>
 
       <div class="report-footer">
@@ -512,58 +531,134 @@ function buildTable3(allRows, extraGroups){
   tfoot.appendChild(trFoot);
 }
 
+// جدول ملخص الفروع (يُستخدم لكل من "ملخص الفروع في شهر ..." و"ملخص الفروع لسنة ... كاملة"
+// بنفس المنطق، فقط تختلف مجموعة الأيام المُمرَّرة إليه)
+function buildBranchStatsTable(tbodyEl, rowsSubset){
+  const total = rowsSubset.reduce((a,r)=>a+r.total,0);
+  tbodyEl.innerHTML = '';
+  const branchStats = BRANCH_ORDER.map(code=>{
+    const branchTotal = rowsSubset.reduce((a,r)=> a + (r.branchVals[code]||0), 0);
+    const branchAvg = rowsSubset.length ? branchTotal / rowsSubset.length : 0;
+    const pct = total ? (branchTotal/total*100) : 0;
+    return {code, branchTotal, branchAvg, pct};
+  });
+  branchStats.sort((a,b)=> b.branchTotal - a.branchTotal);
+  branchStats.forEach(({code, branchTotal, branchAvg, pct})=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${BRANCH_NAMES[code]}</td><td class="num">${numFmt(branchTotal)}</td><td class="num">${numFmt(branchAvg)}</td><td class="num">${Math.round(pct)}%</td>`;
+    tbodyEl.appendChild(tr);
+  });
+}
+
+function monthKeyOf(r){
+  return `${r.year}-${MONTH_NUM[r.monAbbr]}`;
+}
+
+// يملأ خانات "الأشهر السابقة" (الخطوة ٢) تلقائيًا من البيانات اليومية المستوردة،
+// بدل أن يكتبها المستخدم يدويًا — فقط للأشهر التي وُجدت لها بيانات فعلية.
+function autoFillMonthsFromRows(rows){
+  const groups = {};
+  rows.forEach(r=>{
+    const key = monthKeyOf(r);
+    groups[key] = (groups[key]||0) + r.total;
+  });
+  const yearCounts = {};
+  rows.forEach(r=> yearCounts[r.year] = (yearCounts[r.year]||0) + 1);
+  const dominantYear = Object.keys(yearCounts).sort((a,b)=>yearCounts[b]-yearCounts[a])[0];
+  if(!dominantYear) return;
+  document.getElementById('extraYear').value = dominantYear;
+  document.querySelectorAll('#monthsGrid input[data-month]').forEach(input=>{
+    const key = `${dominantYear}-${MONTH_NUM[input.dataset.month]}`;
+    if(groups[key] !== undefined) input.value = String(Math.round(groups[key]));
+  });
+}
+
+// يبني قائمة "الشهر المطلوب للتقرير" من كل الأشهر الموجودة فعليًا في البيانات
+// المستوردة، ويُظهرها فقط إن وُجد أكثر من شهر واحد.
+function populateReportMonthSelect(rows){
+  const keys = Array.from(new Set(rows.map(monthKeyOf))).sort();
+  const select = document.getElementById('reportMonthSelect');
+  select.innerHTML = '';
+  keys.forEach(key=>{
+    const [yr, mn] = key.split('-');
+    const monAbbr = Object.keys(MONTH_NUM).find(m=>MONTH_NUM[m]===mn);
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = `${MONTH_AR[monAbbr]} ${yr}`;
+    select.appendChild(opt);
+  });
+  document.getElementById('reportMonthRow').style.display = keys.length > 1 ? 'flex' : 'none';
+  return keys;
+}
+
+let lastParsedRows = [];
+
+function renderReportForMonth(monthKey){
+  const rows = lastParsedRows;
+  const [yr, mn] = monthKey.split('-');
+  const monAbbr = Object.keys(MONTH_NUM).find(m=>MONTH_NUM[m]===mn);
+  const monthRows = rows.filter(r=> monthKeyOf(r) === monthKey);
+  if(monthRows.length === 0) return;
+
+  // Table 1: ملخص عام (الشهر المختار فقط)
+  const total = monthRows.reduce((a,r)=>a+r.total,0);
+  const avg = total / monthRows.length;
+  let best = monthRows[0], worst = monthRows[0];
+  monthRows.forEach(r=>{ if(r.total > best.total) best = r; if(r.total < worst.total) worst = r; });
+
+  const t1 = document.querySelector('#table1 tbody');
+  t1.innerHTML = `
+    <tr><td>إجمالي المبيعات</td><td class="num">${numFmt(total)}</td></tr>
+    <tr><td>متوسط المبيعات في اليوم</td><td class="num">${numFmt(avg)}</td></tr>
+    <tr class="best"><td>أفضل يوم مبيعًا (${arabicDayName(best.day, best.monAbbr, best.year)}، ${best.day} ${MONTH_AR[best.monAbbr]} ${best.year})</td><td class="num">${numFmt(best.total)}</td></tr>
+    <tr class="worst"><td>أسوأ يوم مبيعًا (${arabicDayName(worst.day, worst.monAbbr, worst.year)}، ${worst.day} ${MONTH_AR[worst.monAbbr]} ${worst.year})</td><td class="num">${numFmt(worst.total)}</td></tr>
+  `;
+
+  // Table 2: ملخص الفروع في الشهر المختار فقط (مرتّب تنازليًا حسب إجمالي المبيعات)
+  buildBranchStatsTable(document.querySelector('#table2 tbody'), monthRows);
+  document.getElementById('table2Caption').textContent = `ملخص الفروع في شهر ${MONTH_AR[monAbbr]} ${yr}`;
+
+  // Table 3: ملخص صافي المبيعات لشهور السنة — كل البيانات المستوردة + الشهور اليدوية المضافة
+  const extraGroups = parseExtraMonths();
+  buildTable3(rows, extraGroups);
+  document.getElementById('table3Caption').textContent = `ملخص صافي المبيعات لشهور سنة ${yr}`;
+
+  // Table 4: ملخص الفروع لكامل السنة (كل الأشهر الموجودة في البيانات لنفس سنة الشهر المختار)
+  const yearRows = rows.filter(r=> r.year === yr);
+  buildBranchStatsTable(document.querySelector('#table4 tbody'), yearRows);
+  document.getElementById('table4Caption').textContent = `ملخص الفروع لسنة ${yr} كاملة`;
+
+  document.getElementById('reportTitleAr').textContent = `تقرير المبيعات الشهري — ${MONTH_AR[monAbbr]} ${yr}`;
+  document.getElementById('genDate').textContent = 'تاريخ التوليد: ' + new Date().toLocaleDateString('ar-SA');
+
+  document.getElementById('report').style.display = 'block';
+  document.getElementById('printBtn').style.display = 'inline-block';
+}
+
 document.getElementById('generateBtn').addEventListener('click', async ()=>{
   const genMsg = document.getElementById('genMsg');
   genMsg.textContent = '';
   genMsg.style.color = 'var(--muted)';
   try{
     const raw = document.getElementById('rawData').value;
-    const {rows, monAbbr, year} = parseData(raw);
+    const {rows} = parseData(raw);
+    lastParsedRows = rows;
 
-    // Table 1: ملخص عام
-    const total = rows.reduce((a,r)=>a+r.total,0);
-    const avg = total / rows.length;
-    let best = rows[0], worst = rows[0];
-    rows.forEach(r=>{ if(r.total > best.total) best = r; if(r.total < worst.total) worst = r; });
+    autoFillMonthsFromRows(rows);
+    const keys = populateReportMonthSelect(rows);
+    const latestKey = keys[keys.length - 1];
+    document.getElementById('reportMonthSelect').value = latestKey;
+    renderReportForMonth(latestKey);
 
-    const t1 = document.querySelector('#table1 tbody');
-    t1.innerHTML = `
-      <tr><td>إجمالي المبيعات</td><td class="num">${numFmt(total)}</td></tr>
-      <tr><td>متوسط المبيعات في اليوم</td><td class="num">${numFmt(avg)}</td></tr>
-      <tr class="best"><td>أفضل يوم مبيعًا (${arabicDayName(best.day, best.monAbbr, best.year)}، ${best.day} ${MONTH_AR[best.monAbbr]} ${best.year})</td><td class="num">${numFmt(best.total)}</td></tr>
-      <tr class="worst"><td>أسوأ يوم مبيعًا (${arabicDayName(worst.day, worst.monAbbr, worst.year)}، ${worst.day} ${MONTH_AR[worst.monAbbr]} ${worst.year})</td><td class="num">${numFmt(worst.total)}</td></tr>
-    `;
-
-    // Table 2: ملخص الفروع (مرتّب تنازليًا حسب إجمالي المبيعات)
-    const t2 = document.querySelector('#table2 tbody');
-    t2.innerHTML = '';
-    const branchStats = BRANCH_ORDER.map(code=>{
-      const branchTotal = rows.reduce((a,r)=> a + (r.branchVals[code]||0), 0);
-      const branchAvg = branchTotal / rows.length;
-      const pct = total ? (branchTotal/total*100) : 0;
-      return {code, branchTotal, branchAvg, pct};
-    });
-    branchStats.sort((a,b)=> b.branchTotal - a.branchTotal);
-    branchStats.forEach(({code, branchTotal, branchAvg, pct})=>{
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${BRANCH_NAMES[code]}</td><td class="num">${numFmt(branchTotal)}</td><td class="num">${numFmt(branchAvg)}</td><td class="num">${Math.round(pct)}%</td>`;
-      t2.appendChild(tr);
-    });
-
-    // Table 3: ملخص صافي المبيعات لشهور السنة — بيانات الجلسة الحالية + الشهور اليدوية المضافة
-    const extraGroups = parseExtraMonths();
-    buildTable3(rows, extraGroups);
-
-    document.getElementById('reportTitleAr').textContent = `تقرير المبيعات الشهري — ${MONTH_AR[monAbbr]} ${year}`;
-    document.getElementById('genDate').textContent = 'تاريخ التوليد: ' + new Date().toLocaleDateString('ar-SA');
-
-    document.getElementById('report').style.display = 'block';
-    document.getElementById('printBtn').style.display = 'inline-block';
-    genMsg.textContent = `تم توليد التقرير بنجاح (${rows.length} يومًا).`;
+    genMsg.textContent = `تم توليد التقرير بنجاح (${rows.length} يومًا${keys.length>1 ? `، ${keys.length} أشهر` : ''}).`;
   }catch(err){
     genMsg.style.color = 'var(--danger)';
     genMsg.textContent = 'خطأ: ' + err.message;
   }
+});
+
+document.getElementById('reportMonthSelect').addEventListener('change', (e)=>{
+  if(lastParsedRows.length) renderReportForMonth(e.target.value);
 });
 
 document.getElementById('printBtn').addEventListener('click', ()=>{
