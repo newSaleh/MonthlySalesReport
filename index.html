@@ -180,6 +180,31 @@
   table.rt tr.worst td{color:var(--danger);font-weight:700;}
   table.rt tfoot td{font-weight:900;background:#ece7d8;}
 
+  table.rt td[contenteditable], table.rt span[contenteditable]{
+    border-radius:3px;
+    outline:none;
+  }
+  table.rt td[contenteditable]:hover, table.rt span[contenteditable]:hover{
+    background:#fff6cc;
+    cursor:text;
+  }
+  table.rt td[contenteditable]:focus, table.rt span[contenteditable]:focus{
+    background:#fff0a8;
+    box-shadow:0 0 0 1px var(--accent);
+  }
+  .row-del-btn{
+    border:1px solid var(--danger);
+    color:var(--danger);
+    background:#fff;
+    border-radius:4px;
+    font-size:11px;
+    line-height:1;
+    padding:3px 6px;
+    cursor:pointer;
+    margin-inline-end:6px;
+  }
+  .row-del-btn:hover{background:var(--danger);color:#fff;}
+
   .report-footer{
     display:flex;
     justify-content:space-between;
@@ -198,6 +223,11 @@
     @page{size:A4;margin:10mm;}
 
     .report-logo{max-width:150px;margin-bottom:8px;}
+
+    table.rt td[contenteditable], table.rt span[contenteditable]{
+      background:transparent !important;
+      box-shadow:none !important;
+    }
 
     /* خط واحد موحّد لكل عناصر التقرير المطبوع لتقليل عدد الخطوط المُضمَّنة داخل PDF إلى أدنى حد */
     body, .report-title h1, table.rt, table.rt caption, table.rt td.num, table.rt th.num{
@@ -259,6 +289,8 @@
         <h1 id="reportTitleAr">تقرير المبيعات الشهري</h1>
       </div>
 
+      <div class="msg no-print" style="margin-bottom:14px;">💡 يمكنك النقر على أي رقم أو اسم في الجداول أدناه وتعديله مباشرة (مثلًا لإضافة فرع مغلق غير موجود في ملف Excel) قبل الطباعة. هذه التعديلات لا تُحفظ ولن تظهر إن أعدت توليد التقرير أو غيّرت الشهر المختار.</div>
+
       <table class="rt" id="table1">
         <caption>ملخص عام</caption>
         <tbody></tbody>
@@ -276,6 +308,10 @@
         </thead>
         <tbody></tbody>
       </table>
+      <div class="actions no-print" style="margin-top:-10px;margin-bottom:20px;">
+        <button type="button" class="secondary" data-add-branch="table2">+ إضافة فرع يدويًا</button>
+        <button type="button" class="secondary" data-recompute-pct="table2">🔄 إعادة احتساب النسب</button>
+      </div>
 
       <table class="rt" id="table3">
         <caption id="table3Caption">ملخص صافي المبيعات لشهور سنة 2026</caption>
@@ -298,6 +334,10 @@
         </thead>
         <tbody></tbody>
       </table>
+      <div class="actions no-print" style="margin-top:-10px;margin-bottom:20px;">
+        <button type="button" class="secondary" data-add-branch="table4">+ إضافة فرع يدويًا</button>
+        <button type="button" class="secondary" data-recompute-pct="table4">🔄 إعادة احتساب النسب</button>
+      </div>
 
       <div class="report-footer">
         <span id="genDate"></span>
@@ -523,11 +563,11 @@ function buildTable3(allRows, extraGroups){
     const monthName = monthKey ? MONTH_AR[monthKey] : mn;
     sum += groups[k];
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${monthName} ${yr}</td><td class="num">${numFmt(groups[k])}</td>`;
+    tr.innerHTML = `<td contenteditable="true">${monthName} ${yr}</td><td class="num" contenteditable="true">${numFmt(groups[k])}</td>`;
     tbody.appendChild(tr);
   });
   const trFoot = document.createElement('tr');
-  trFoot.innerHTML = `<td>الإجمالي</td><td class="num">${numFmt(sum)}</td>`;
+  trFoot.innerHTML = `<td contenteditable="true">الإجمالي</td><td class="num" contenteditable="true">${numFmt(sum)}</td>`;
   tfoot.appendChild(trFoot);
 }
 
@@ -545,10 +585,50 @@ function buildBranchStatsTable(tbodyEl, rowsSubset){
   branchStats.sort((a,b)=> b.branchTotal - a.branchTotal);
   branchStats.forEach(({code, branchTotal, branchAvg, pct})=>{
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${BRANCH_NAMES[code]}</td><td class="num">${numFmt(branchTotal)}</td><td class="num">${numFmt(branchAvg)}</td><td class="num">${Math.round(pct)}%</td>`;
+    tr.innerHTML = `<td><span contenteditable="true">${BRANCH_NAMES[code]}</span></td><td class="num" contenteditable="true">${numFmt(branchTotal)}</td><td class="num" contenteditable="true">${numFmt(branchAvg)}</td><td class="num" contenteditable="true">${Math.round(pct)}%</td>`;
     tbodyEl.appendChild(tr);
   });
 }
+
+// يضيف صفًا فارغًا قابلًا للتعديل يدويًا لجدول ملخص فروع (مثلًا فرع مغلق
+// لا توجد بياناته في ملف Excel المستورد)، مع زر حذف صغير لا يظهر عند الطباعة.
+function addManualBranchRow(tableId){
+  const tbody = document.querySelector(`#${tableId} tbody`);
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><button type="button" class="no-print row-del-btn" title="حذف هذا الصف">✕</button><span contenteditable="true">اسم الفرع</span></td>
+    <td class="num" contenteditable="true">0</td>
+    <td class="num" contenteditable="true">0</td>
+    <td class="num" contenteditable="true">0%</td>
+  `;
+  tbody.appendChild(tr);
+  tr.querySelector('.row-del-btn').addEventListener('click', ()=> tr.remove());
+  const nameSpan = tr.querySelector('span[contenteditable]');
+  const range = document.createRange();
+  range.selectNodeContents(nameSpan);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+  nameSpan.focus();
+}
+
+// يعيد احتساب عمود "نسبة من إجمالي المبيعات" في جدول فروع بناءً على القيم
+// الحالية المعروضة في عمود "إجمالي المبيعات" (بعد أي تعديل يدوي أو إضافة فرع)
+function recomputeBranchPercentages(tableId){
+  const rows = Array.from(document.querySelectorAll(`#${tableId} tbody tr`));
+  const totals = rows.map(tr => parseNumber(tr.children[1].textContent) || 0);
+  const sum = totals.reduce((a,b)=>a+b, 0);
+  rows.forEach((tr, i)=>{
+    tr.children[3].textContent = sum ? `${Math.round(totals[i]/sum*100)}%` : '0%';
+  });
+}
+
+document.querySelectorAll('[data-add-branch]').forEach(btn=>{
+  btn.addEventListener('click', ()=> addManualBranchRow(btn.dataset.addBranch));
+});
+document.querySelectorAll('[data-recompute-pct]').forEach(btn=>{
+  btn.addEventListener('click', ()=> recomputeBranchPercentages(btn.dataset.recomputePct));
+});
 
 function monthKeyOf(r){
   return `${r.year}-${MONTH_NUM[r.monAbbr]}`;
@@ -608,10 +688,10 @@ function renderReportForMonth(monthKey){
 
   const t1 = document.querySelector('#table1 tbody');
   t1.innerHTML = `
-    <tr><td>إجمالي المبيعات</td><td class="num">${numFmt(total)}</td></tr>
-    <tr><td>متوسط المبيعات في اليوم</td><td class="num">${numFmt(avg)}</td></tr>
-    <tr class="best"><td>أفضل يوم مبيعًا (${arabicDayName(best.day, best.monAbbr, best.year)}، ${best.day} ${MONTH_AR[best.monAbbr]} ${best.year})</td><td class="num">${numFmt(best.total)}</td></tr>
-    <tr class="worst"><td>أسوأ يوم مبيعًا (${arabicDayName(worst.day, worst.monAbbr, worst.year)}، ${worst.day} ${MONTH_AR[worst.monAbbr]} ${worst.year})</td><td class="num">${numFmt(worst.total)}</td></tr>
+    <tr><td contenteditable="true">إجمالي المبيعات</td><td class="num" contenteditable="true">${numFmt(total)}</td></tr>
+    <tr><td contenteditable="true">متوسط المبيعات في اليوم</td><td class="num" contenteditable="true">${numFmt(avg)}</td></tr>
+    <tr class="best"><td contenteditable="true">أفضل يوم مبيعًا (${arabicDayName(best.day, best.monAbbr, best.year)}، ${best.day} ${MONTH_AR[best.monAbbr]} ${best.year})</td><td class="num" contenteditable="true">${numFmt(best.total)}</td></tr>
+    <tr class="worst"><td contenteditable="true">أسوأ يوم مبيعًا (${arabicDayName(worst.day, worst.monAbbr, worst.year)}، ${worst.day} ${MONTH_AR[worst.monAbbr]} ${worst.year})</td><td class="num" contenteditable="true">${numFmt(worst.total)}</td></tr>
   `;
 
   // Table 2: ملخص الفروع في الشهر المختار فقط (مرتّب تنازليًا حسب إجمالي المبيعات)
