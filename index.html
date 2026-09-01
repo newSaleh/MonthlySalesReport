@@ -289,7 +289,7 @@
         <h1 id="reportTitleAr">تقرير المبيعات الشهري</h1>
       </div>
 
-      <div class="msg no-print" style="margin-bottom:14px;">💡 يمكنك النقر على أي رقم أو اسم في الجداول أدناه وتعديله مباشرة (مثلًا لإضافة فرع مغلق غير موجود في ملف Excel) قبل الطباعة. هذه التعديلات لا تُحفظ ولن تظهر إن أعدت توليد التقرير أو غيّرت الشهر المختار.</div>
+      <div class="msg no-print" style="margin-bottom:14px;">💡 يمكنك النقر على أي رقم أو اسم في الجداول أدناه وتعديله مباشرة (مثلًا لإضافة فرع مغلق غير موجود في ملف Excel) قبل الطباعة. تعديل عمود "إجمالي المبيعات" يُحدّث النسب تلقائيًا، وتعديل جدول الأشهر يُحدّث الإجمالي تلقائيًا. هذه التعديلات لا تُحفظ ولن تظهر إن أعدت توليد التقرير أو غيّرت الشهر المختار.</div>
 
       <table class="rt" id="table1">
         <caption>ملخص عام</caption>
@@ -310,7 +310,6 @@
       </table>
       <div class="actions no-print" style="margin-top:-10px;margin-bottom:20px;">
         <button type="button" class="secondary" data-add-branch="table2">+ إضافة فرع يدويًا</button>
-        <button type="button" class="secondary" data-recompute-pct="table2">🔄 إعادة احتساب النسب</button>
       </div>
 
       <table class="rt" id="table3">
@@ -336,7 +335,6 @@
       </table>
       <div class="actions no-print" style="margin-top:-10px;margin-bottom:20px;">
         <button type="button" class="secondary" data-add-branch="table4">+ إضافة فرع يدويًا</button>
-        <button type="button" class="secondary" data-recompute-pct="table4">🔄 إعادة احتساب النسب</button>
       </div>
 
       <div class="report-footer">
@@ -363,8 +361,12 @@ const MONTH_AR = {
 };
 const MONTH_NUM = {JAN:"01",FEB:"02",MAR:"03",APR:"04",MAY:"05",JUN:"06",JUL:"07",AUG:"08",SEP:"09",OCT:"10",NOV:"11",DEC:"12"};
 
+// للأرقام الكبيرة (٧ خانات فأكثر، أي مليون وأكثر) نقرّب لأقرب ألف حتى تنتهي
+// الخانات الثلاث الأخيرة (آحاد/عشرات/مئات) بأصفار، تسهيلًا لقراءة التقرير.
 function numFmt(n){
-  return Math.round(n).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0});
+  let rounded = Math.round(n);
+  if(Math.abs(rounded) >= 1000000) rounded = Math.round(rounded/1000)*1000;
+  return rounded.toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0});
 }
 
 function arabicDayName(day, monAbbr, year){
@@ -623,11 +625,30 @@ function recomputeBranchPercentages(tableId){
   });
 }
 
+// يعيد احتساب صف "الإجمالي" في جدول ملخص صافي المبيعات لشهور السنة
+// بناءً على القيم الحالية المعروضة في عمود "صافي المبيعات" لكل الأشهر
+function recomputeTable3Total(){
+  const cells = document.querySelectorAll('#table3 tbody td.num');
+  let sum = 0;
+  cells.forEach(td => { sum += parseNumber(td.textContent) || 0; });
+  const footCell = document.querySelector('#table3 tfoot td.num');
+  if(footCell) footCell.textContent = numFmt(sum);
+}
+
 document.querySelectorAll('[data-add-branch]').forEach(btn=>{
   btn.addEventListener('click', ()=> addManualBranchRow(btn.dataset.addBranch));
 });
-document.querySelectorAll('[data-recompute-pct]').forEach(btn=>{
-  btn.addEventListener('click', ()=> recomputeBranchPercentages(btn.dataset.recomputePct));
+
+// تحديث تلقائي: أي تعديل على خانة "إجمالي المبيعات" في جدولي ملخص الفروع
+// يعيد احتساب النسب فورًا، وأي تعديل على جدول الأشهر يعيد احتساب الإجمالي فورًا —
+// دون الحاجة لأي زر.
+['table2','table4'].forEach(tableId=>{
+  document.querySelector(`#${tableId} tbody`).addEventListener('input', (e)=>{
+    if(e.target.matches('td.num') && e.target.cellIndex === 1) recomputeBranchPercentages(tableId);
+  });
+});
+document.querySelector('#table3 tbody').addEventListener('input', (e)=>{
+  if(e.target.matches('td.num')) recomputeTable3Total();
 });
 
 function monthKeyOf(r){
